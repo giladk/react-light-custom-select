@@ -3,16 +3,16 @@ export const wrapperStyle =  (props) => ({
     width:'100%',
     boxSizing: 'border-box',
     position:'relative',
-    zIndex: `${props.isSelectHovered || props.menuIsOpen ? 2 : 1}`,
+    zIndex: `${ props.isSelectHovered ? 3  : props.menuIsOpen ? 2 : 1}`,
     outline:'none'
 });
 
 export const controlStyle = (props) => ({
     width:'100%',
     height: '36px',
-    border:`${props.isSelectHovered || props.isNativeFocused ? '2' : '1'}px solid #3e3e3e`,
+    border:`${props.isControlHovered || props.isNativeFocused ? '2' : '1'}px solid #3e3e3e`,
     borderRadius:'3px',
-    padding:`${props.isSelectHovered || props.isNativeFocused ? '7' : '8'}px`,
+    padding:`${props.isControlHovered || props.isNativeFocused ? '7' : '8'}px`,
     boxSizing:'border-box',
     display:'flex',
     justifyContent: 'space-between',
@@ -37,7 +37,7 @@ export const indecatorArrowStyle = (props) => ({
     // transition: 'all 0.2s';
 });
 
-export const menuWrapperStyle = {
+export const menuWrapperStyle = (props) => ({
     position: 'absolute',
     top:'100%',
     width:'100%',
@@ -46,7 +46,8 @@ export const menuWrapperStyle = {
     borderRadius:'3px',
     maxHeight:'250px',
     overflowY: 'auto',
-};
+    ...props.customStyle
+});
 
 export const optionWrapperStyle = (props) => ({
     padding:'8px',
