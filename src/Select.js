@@ -6,7 +6,7 @@ import {wrapperStyle, controlStyle, menuWrapperStyle, optionWrapperStyle, valueW
 
 export const Select = React.forwardRef((props, ref) => { 
 
-    const {options,isOpen,itemRender,closeOnOutClick,closeOnSelectOption} = props;
+    const {options,onSelect,afterMenuIsOpen,isOpen,itemRender,customStyle,closeOnOutClick,closeOnSelectOption} = props;
 
     const [menuIsOpen, setMenuIsOpen] = useState(isOpen); // we use menuIsOpen instead of isOpen, because isOpen is prop that make the select controled
     const [selectedOption, setSelectedOption] = useState(null);
@@ -16,8 +16,11 @@ export const Select = React.forwardRef((props, ref) => {
     const [isSelectFocused, setIsSelectFocused] = useState(false);
     const [isNativeFocused, setIsNativeFocused] = useState(false);
     const [isSelectHovered, setIsSelectHovered] = useState(false);
+    const [isControlHovered, setIsControlHovered] = useState(false);
     //const [optionsRefs, setOptionRefs] = useState([]);
     const menuWrapperRef = useRef(null);
+    const controlRef = useRef(null);
+    // const menuRef = useRef(null);
     const optionsRefs = useRef(options.map( (option)=> React.createRef()));
     
     const handleWrapperMouseEnter = () => {
@@ -28,6 +31,14 @@ export const Select = React.forwardRef((props, ref) => {
         setIsSelectHovered(false);
     }
 
+    const handleControlMouseEnter = () => {
+        setIsControlHovered(true);
+    }
+
+    const handleControlMouseLeave = () => {
+        setIsControlHovered(false);
+    }
+
     const handleWrapperFocus = () => {
         // console.log("Focused");
         setIsNativeFocused(true);
@@ -36,7 +47,9 @@ export const Select = React.forwardRef((props, ref) => {
     const handleWrapperFocusOut = () => {
         // console.log("Blured")
         setIsNativeFocused(false);
-        setMenuIsOpen(false);
+        if (closeOnOutClick!==false){
+            setMenuIsOpen(false);
+        }
     }
 
     const handleControlClick = () => {
@@ -54,6 +67,9 @@ export const Select = React.forwardRef((props, ref) => {
     const handleOptionClick = (option,index) => {
         setSelectedOption(option);
         setSelectedOptionIndex(index);
+        if (onSelect){
+            onSelect(option);
+        }
         if (closeOnSelectOption!==false){
             setMenuIsOpen(false);
             setIsSelectHovered(false);
@@ -83,12 +99,13 @@ export const Select = React.forwardRef((props, ref) => {
             }else {
                 handleOptionClick(options[focusedOptionIndex],focusedOptionIndex)
             }
-        } else if (menuIsOpen && e.keyCode !== 9) {
+        } else if (menuIsOpen && e.keyCode !== 9 && e.code !== 'Tab') {
             const newFocusedIndex = getNewFocusedOptionIndex(e.keyCode,e.key,options,focusedOptionIndex);
             if (newFocusedIndex !== -1){
                 setFocusedOptionIndex(newFocusedIndex);
                 checkFocusedOptionPosition(newFocusedIndex);
             }
+            e.preventDefault();  
         }
     }
 
@@ -127,21 +144,24 @@ export const Select = React.forwardRef((props, ref) => {
             document.addEventListener('click',handlDocumentClick);
         }
         return () => {
-            // if (menuIsOpen){
-                // console.log("Remove click listenr")
-                document.removeEventListener('click',handlDocumentClick);
-            // }
+            // console.log("Remove click listenr")
+            document.removeEventListener('click',handlDocumentClick);
         };
     }, [menuIsOpen,isSelectFocused])
 
     useEffect(()=>{
-        checkFocusedOptionPosition(focusedOptionIndex);
+        if (menuIsOpen){
+            if (afterMenuIsOpen){
+                afterMenuIsOpen({controlRef,menuRef:menuWrapperRef});
+            }
+            checkFocusedOptionPosition(focusedOptionIndex);
+        }
     },[menuIsOpen])
 
 
     return (
-        <div tabIndex="0" style={wrapperStyle({isSelectHovered,menuIsOpen,isNativeFocused})} onFocus={handleWrapperFocus} onBlur={handleWrapperFocusOut} >
-            <div style={controlStyle({isSelectHovered,isNativeFocused})} onClick={handleControlClick} onMouseEnter={handleWrapperMouseEnter} onMouseLeave={handleWrapperMouseLeave}>
+        <div tabIndex="0" style={wrapperStyle({isSelectHovered,isControlHovered,menuIsOpen,isNativeFocused})} onFocus={handleWrapperFocus} onBlur={handleWrapperFocusOut} onMouseEnter={handleWrapperMouseEnter} onMouseLeave={handleWrapperMouseLeave} >
+            <div ref={controlRef} style={controlStyle({isSelectHovered,isControlHovered,isNativeFocused})} onClick={handleControlClick} onMouseEnter={handleControlMouseEnter} onMouseLeave={handleControlMouseLeave}>
                 <div style={valueWrapperStyle}>
                     {selectedOption ? selectedOption.label : 'Select...'}
                 </div>
@@ -150,7 +170,7 @@ export const Select = React.forwardRef((props, ref) => {
                 </div>
             </div>
             { menuIsOpen && 
-                <div style={menuWrapperStyle} ref={menuWrapperRef}>
+                <div style={menuWrapperStyle({customStyle: customStyle && customStyle.menu ? customStyle.menu : {} })} ref={menuWrapperRef}>
                     {options.map((option,ind)=>{
                         const styleProps = {
                             isFocused:ind===focusedOptionIndex,
@@ -160,14 +180,16 @@ export const Select = React.forwardRef((props, ref) => {
                         }
                         // console.log(itemRender);
                         return(
-                            <SelectOption key={ind} 
-                                ref={optionsRefs.current[ind]}
+                            <div key={ind} ref={optionsRefs.current[ind]}
+                                 onMouseEnter={()=>{handleOptionMouseEnter(ind)}}
+                                 onClick={()=>{handleOptionClick(option,ind)}}>
+                            <SelectOption
+                                
                                 styleProps={styleProps}
                                 option={option}
                                 itemRenderFunction={itemRender || false}
-                                onMouseEnter={()=>{handleOptionMouseEnter(ind)}} 
-                                onClick={()=>{handleOptionClick(option,ind)}}
                             />
+                            </div>
                     )})}
                 </div>
             }
@@ -175,12 +197,10 @@ export const Select = React.forwardRef((props, ref) => {
     )
 });
 
-const SelectOption = React.memo(React.forwardRef((props, ref) => {
+const SelectOption = React.memo((props) => {
     const {option,styleProps,onMouseEnter,itemRenderFunction,...rest} = props;
     return (
-    <div  ref={ref}
-          onMouseEnter={onMouseEnter}
-          {...rest}>
+    <div  {...rest}>
           {
             typeof option.component === 'function' ? option.component({...styleProps}) : 
             (itemRenderFunction ? itemRenderFunction({...option,...styleProps}):
@@ -189,5 +209,5 @@ const SelectOption = React.memo(React.forwardRef((props, ref) => {
             </div>)
           }                      
     </div>)
-}));
+});
 
