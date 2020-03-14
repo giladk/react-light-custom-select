@@ -1,6 +1,6 @@
 {
   "name": "react-light-custom-select",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Lightweight react library for custom select",
   "main": "dist/bundle.js",
   "module": "dist/es.module.js",
