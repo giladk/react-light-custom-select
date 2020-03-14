@@ -1,5 +1,6 @@
 src
 tests
+node_modules
 .storybook
 stories
 *.config.js

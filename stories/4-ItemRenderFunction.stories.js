@@ -4,7 +4,7 @@ import {optionsShort, optionsShortString, optionsLong, optionsLongString} from '
 import {rowStlye, descriptionStyle, boxStyle, boxDescriptionStyle} from './styles';
 
 export default {
-  title: 'Custom style',
+  title: 'Item render function',
 };
 
 const customOptionComponent = (props) => { 
