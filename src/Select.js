@@ -1,23 +1,21 @@
 import React , {useState, useEffect, useRef, useImperativeHandle } from 'react';
-import { getNewFocusedOptionIndex } from './functions';
-import {wrapperStyle, controlStyle, menuWrapperStyle, optionWrapperStyle, valueWrapperStyle, indecatorArrowStyle} from './styles/components.styles';
-
-
+import { getComponentStyle, getNewFocusedOptionIndex , getScrollPositionForOption } from './functions';
+import {getWrapperStyle, getControlStyle, getValueWrapperStyle, getValueStyle, getIndecatorWrapperStyle, getIndecatorStyle, getMenuWrapperStyle, getOptionWrapperStyle} from './styles/components.styles';
 
 export const Select = React.forwardRef((props, ref) => { 
 
-    const {options,onSelect,afterMenuIsOpen,isOpen,itemRender,customStyle,closeOnOutClick,closeOnSelectOption} = props;
+    const {options,placeholder,value,onSelect,afterMenuIsOpen,isOpen,itemRender,components,customStyle,closeOnOutClick,closeOnSelectOption} = props;
 
     const [menuIsOpen, setMenuIsOpen] = useState(isOpen); // we use menuIsOpen instead of isOpen, because isOpen is prop that make the select controled
-    const [selectedOption, setSelectedOption] = useState(null);
-    const [selectedOptionIndex, setSelectedOptionIndex] = useState(null);
-    // const [focusedOption, setFocusedOption] = useState(options[0]);
-    const [focusedOptionIndex, setFocusedOptionIndex] = useState(0);
+    // if value is passed - search for the selected index
+    const [selectedOptionIndex, setSelectedOptionIndex] = useState( options.findIndex(o=>o.value===value) );
+    const [selectedOption, setSelectedOption] = useState( selectedOptionIndex !== -1 ? options[selectedOptionIndex] : null);
+    const [focusedOptionIndex, setFocusedOptionIndex] = useState(selectedOptionIndex !== -1 ? selectedOptionIndex : 0);
     const [isSelectFocused, setIsSelectFocused] = useState(false);
     const [isNativeFocused, setIsNativeFocused] = useState(false);
     const [isSelectHovered, setIsSelectHovered] = useState(false);
     const [isControlHovered, setIsControlHovered] = useState(false);
-    //const [optionsRefs, setOptionRefs] = useState([]);
+    
     const menuWrapperRef = useRef(null);
     const controlRef = useRef(null);
     // const menuRef = useRef(null);
@@ -65,8 +63,10 @@ export const Select = React.forwardRef((props, ref) => {
     }
 
     const handleOptionClick = (option,index) => {
-        setSelectedOption(option);
-        setSelectedOptionIndex(index);
+        if (!value){
+            setSelectedOption(option);
+            setSelectedOptionIndex(index);
+        }
         if (onSelect){
             onSelect(option);
         }
@@ -80,12 +80,9 @@ export const Select = React.forwardRef((props, ref) => {
         if (menuWrapperRef.current && !menuWrapperRef.current.contains(e.target)){
             // console.log("handle out menu click");
             setIsSelectFocused(false);
-            // if close by property :
-            // console.log(closeOnOutClick);
             if (closeOnOutClick!==false){
                 setMenuIsOpen(false);
             }
-            //  ;
         }
     }
 
@@ -102,28 +99,18 @@ export const Select = React.forwardRef((props, ref) => {
         } else if (menuIsOpen && e.keyCode !== 9 && e.code !== 'Tab') {
             const newFocusedIndex = getNewFocusedOptionIndex(e.keyCode,e.key,options,focusedOptionIndex);
             if (newFocusedIndex !== -1){
+                // console.log(newFocusedIndex)
                 setFocusedOptionIndex(newFocusedIndex);
-                checkFocusedOptionPosition(newFocusedIndex);
+                scrollToOptionPosition(newFocusedIndex);
             }
             e.preventDefault();  
         }
     }
 
-    const checkFocusedOptionPosition = (newFocusedIndex) => {
-        // console.log(menuWrapperRef.current,optionsRefs.current[newFocusedIndex].current)
-        const focusedOptionRef = optionsRefs.current[newFocusedIndex].current;
-        if (focusedOptionRef !== null){
-            const scrollEl = menuWrapperRef.current;
-            const focusedStart = focusedOptionRef.getBoundingClientRect().top + scrollEl.scrollTop;
-            const focusedEnd = focusedStart + focusedOptionRef.getBoundingClientRect().height;
-            const scrollElStart = scrollEl.getBoundingClientRect().top + scrollEl.scrollTop;
-            const scrollElEnd = scrollElStart + scrollEl.clientHeight;
-            // console.log(focusedStart,focusedEnd,scrollElStart,scrollElEnd)
-            if (focusedStart < scrollElStart) {
-                scrollEl.scrollTop -= scrollElStart - focusedStart;
-            } else if (focusedEnd > scrollElEnd) {
-                scrollEl.scrollTop += focusedEnd - scrollElEnd;
-            }
+    const scrollToOptionPosition = (optionIndex) => {
+        const optionRef = optionsRefs.current[optionIndex].current;
+        if (optionRef !== null){
+            menuWrapperRef.current.scrollTop = getScrollPositionForOption(menuWrapperRef.current,optionRef);
         }
     }
 
@@ -151,26 +138,55 @@ export const Select = React.forwardRef((props, ref) => {
 
     useEffect(()=>{
         if (menuIsOpen){
+            scrollToOptionPosition(focusedOptionIndex);
             if (afterMenuIsOpen){
                 afterMenuIsOpen({controlRef,menuRef:menuWrapperRef});
             }
-            checkFocusedOptionPosition(focusedOptionIndex);
         }
     },[menuIsOpen])
 
 
+    useEffect(()=>{
+        const newSelectedOptionIndex = options.findIndex(o=>o.value===value);
+        setSelectedOptionIndex(newSelectedOptionIndex);
+        setSelectedOption(newSelectedOptionIndex !== -1 ? options[newSelectedOptionIndex] : null);
+        setFocusedOptionIndex(newSelectedOptionIndex !== -1 ? newSelectedOptionIndex : 0);
+    },[value])
+
+    const baseStylesProps = {menuIsOpen,isSelectHovered,isControlHovered,isFocused:isNativeFocused};
+
+    const wrapperStyle = getComponentStyle(baseStylesProps,getWrapperStyle,customStyle && customStyle.wrapper ? customStyle.wrapper : {},true)
+    const controlStyle = getComponentStyle({...baseStylesProps,hasValue:selectedOption? true : false},getControlStyle,customStyle && customStyle.control ? customStyle.control : {},true);
+    const valueWrapperStyle = getComponentStyle(baseStylesProps,getValueWrapperStyle,customStyle && customStyle.valueWrapper ? customStyle.valueWrapper : {},true);
+    const valueStyle = getComponentStyle(baseStylesProps,getValueStyle,customStyle && customStyle.value ? customStyle.value : {},true);
+    const indecatorWrapperStyle = getComponentStyle(baseStylesProps,getIndecatorWrapperStyle,customStyle && customStyle.indicatorWrapper ? customStyle.indicatorWrapper : {},true);
+    const indicatorStyle = getComponentStyle(baseStylesProps,getIndecatorStyle,customStyle && customStyle.indicator ? customStyle.indicator : {},true);
+
+    const menuStyleProps = { isSelectHovered,isControlHovered,isFocused:isNativeFocused };
+    const menuStyle = getComponentStyle(menuStyleProps,getMenuWrapperStyle,customStyle && customStyle.menu ? customStyle.menu : {},true);
+
+    
+
+    // const controlStyleProps = {menuIsOpen,isSelectHovered,isControlHovered,isFocused:isNativeFocused,hasValue:selectedOption? true : false}
+    //const controlStyle = getComponentStyle(controlStyleProps,getControlStyle,customStyle && customStyle.control ? customStyle.control : {},true);
+
     return (
-        <div tabIndex="0" style={wrapperStyle({isSelectHovered,isControlHovered,menuIsOpen,isNativeFocused})} onFocus={handleWrapperFocus} onBlur={handleWrapperFocusOut} onMouseEnter={handleWrapperMouseEnter} onMouseLeave={handleWrapperMouseLeave} >
-            <div ref={controlRef} style={controlStyle({isSelectHovered,isControlHovered,isNativeFocused})} onClick={handleControlClick} onMouseEnter={handleControlMouseEnter} onMouseLeave={handleControlMouseLeave}>
-                <div style={valueWrapperStyle}>
-                    {selectedOption ? selectedOption.label : 'Select...'}
-                </div>
-                <div>
-                    <span style={indecatorArrowStyle({menuIsOpen})} ></span>
-                </div>
+        <div tabIndex="0" style={wrapperStyle} onFocus={handleWrapperFocus} onBlur={handleWrapperFocusOut} onMouseEnter={handleWrapperMouseEnter} onMouseLeave={handleWrapperMouseLeave} >
+            <div ref={controlRef} onClick={handleControlClick} onMouseEnter={handleControlMouseEnter} onMouseLeave={handleControlMouseLeave}>
+                { components && components.control ? 
+                    components.control({menuIsOpen,selectedOption}):
+                    <div style={controlStyle}>
+                        <div style={valueWrapperStyle}>
+                            <div style={valueStyle} >{selectedOption ? selectedOption.label : (placeholder || 'Select...') }</div>
+                        </div>    
+                        <div style={indecatorWrapperStyle}>
+                            <span style={indicatorStyle} ></span>
+                        </div>
+                    </div> 
+               }
             </div>
             { menuIsOpen && 
-                <div style={menuWrapperStyle({customStyle: customStyle && customStyle.menu ? customStyle.menu : {} })} ref={menuWrapperRef}>
+                <div style={menuStyle} ref={menuWrapperRef}>
                     {options.map((option,ind)=>{
                         const styleProps = {
                             isFocused:ind===focusedOptionIndex,
@@ -184,8 +200,8 @@ export const Select = React.forwardRef((props, ref) => {
                                  onMouseEnter={()=>{handleOptionMouseEnter(ind)}}
                                  onClick={()=>{handleOptionClick(option,ind)}}>
                             <SelectOption
-                                
-                                styleProps={styleProps}
+                                {...styleProps}
+                                customStyle={customStyle && customStyle.option ? customStyle.option : {}}
                                 option={option}
                                 itemRenderFunction={itemRender || false}
                             />
@@ -198,13 +214,15 @@ export const Select = React.forwardRef((props, ref) => {
 });
 
 const SelectOption = React.memo((props) => {
-    const {option,styleProps,onMouseEnter,itemRenderFunction,...rest} = props;
+    const {option,itemRenderFunction,customStyle,...styleProps} = props;
+    const optionStyle = getComponentStyle(styleProps,getOptionWrapperStyle,customStyle,false);
+
     return (
-    <div  {...rest}>
+    <div >
           {
             typeof option.component === 'function' ? option.component({...styleProps}) : 
             (itemRenderFunction ? itemRenderFunction({...option,...styleProps}):
-            <div style={optionWrapperStyle({...styleProps})}>
+            <div style={optionStyle}>
                 {option.component ? ( typeof option.component === 'function' ? option.component({...styleProps}) : option.component ) : option.label}
             </div>)
           }                      
